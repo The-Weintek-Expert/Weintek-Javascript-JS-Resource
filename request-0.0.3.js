@@ -1,4 +1,6 @@
 // Changelogs:
+// 0.0.4 (2024-08-09):
+// - Use encodeURIComponent and decodeURIComponent to replace embedded QueryString module
 // 0.0.3 (2022-08-05):
 // - Added methods for PUT, PATCH, DELETE
 // - Move shared codes into _perform_single_easy
@@ -13,7 +15,7 @@ var request = {
     put: requestPut,
     patch: requestPatch,
     delete: requestDelete,
-    version: "0.0.3",
+    version: "0.0.4",
 };
 
 /**
@@ -36,7 +38,7 @@ function requestGet(opt, cb) {
     // for example, url is "http://localhost:8080/q?a=1&b=2" and data is {"a":100,"b":2,"c":3}.
     // they will be combined as "http://localhost:8080/q?a=100&b=2&c=3"
     if (qsPos > -1) {
-        var dataInUrl = QueryString.parse(opt.url.substring(qsPos + 1));
+        var dataInUrl = parse(opt.url.substring(qsPos + 1));
         // existing data has higher precedence than ones in url
         Object.assign(dataInUrl, data);
         // reassign to data
@@ -44,9 +46,9 @@ function requestGet(opt, cb) {
         // cleanup url
         opt.url = opt.url.substring(0, qsPos);
     }
-    var qs = QueryString.stringify(data);
+    var qs = stringify(data);
     if (qs.length > 0) {
-        opt.url += "?" + QueryString.stringify(data);
+        opt.url += "?" + stringify(data);
     }
 
     easy.setOpt(net.Curl.Easy.option.HTTPGET, true);
@@ -96,7 +98,7 @@ function _perform_single_easy_with_body(opt, cb) {
     if (opt.data !== undefined) {
         requestBody = opt.data;
     } else if (opt.form !== undefined) {
-        requestBody = QueryString.stringify(opt.form);
+        requestBody = stringify(opt.form);
     }
     if (requestBody !== null) {
         easy.setOpt(net.Curl.Easy.option.POSTFIELDS, requestBody);
@@ -165,7 +167,21 @@ function _perform_single_easy(easy, opt, cb) {
     return;
 }
 
-// QueryString modified from https://github.com/nodejs/node/blob/3bdcbdb1a085b35a3a50112a51781b31d8814294/lib/querystring.js
-const QueryString = { unescape: qsUnescape, escape: qsEscape, stringify: stringify, encode: stringify, parse: parse, decode: parse }; function ParsedQueryString() { } function qsUnescape(e) { return decodeURIComponent(e) } ParsedQueryString.prototype = Object.create(null); const hexTable = []; for (var i = 0; i < 256; ++i)hexTable[i] = "%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase(); const noEscape = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0]; function qsEscape(e) { "string" != typeof e && ("object" == typeof e ? e = String(e) : e += ""); for (var t = "", n = 0, r = 0; r < e.length; ++r) { var i = e.charCodeAt(r); if (i < 128) { if (1 === noEscape[i]) continue; n < r && (t += e.slice(n, r)), n = r + 1, t += hexTable[i] } else if (n < r && (t += e.slice(n, r)), i < 2048) n = r + 1, t += hexTable[192 | i >> 6] + hexTable[128 | 63 & i]; else if (i < 55296 || i >= 57344) n = r + 1, t += hexTable[224 | i >> 12] + hexTable[128 | i >> 6 & 63] + hexTable[128 | 63 & i]; else { var o; if (!(++r < e.length)) throw new URIError("URI malformed"); o = 1023 & e.charCodeAt(r), n = r + 1, t += hexTable[240 | (i = 65536 + ((1023 & i) << 10 | o)) >> 18] + hexTable[128 | i >> 12 & 63] + hexTable[128 | i >> 6 & 63] + hexTable[128 | 63 & i] } } return 0 === n ? e : n < e.length ? t + e.slice(n) : t } function stringifyPrimitive(e) { return "string" == typeof e ? e : "number" == typeof e && isFinite(e) ? "" + e : "boolean" == typeof e ? e ? "true" : "false" : "" } function stringify(e, t, n, r) { t = t || "&", n = n || "="; var i = QueryString.escape; if (r && "function" == typeof r.encodeURIComponent && (i = r.encodeURIComponent), null !== e && "object" == typeof e) { for (var o = Object.keys(e), s = o.length, c = s - 1, a = "", f = 0; f < s; ++f) { var l = o[f], d = e[l], h = i(stringifyPrimitive(l)) + n; if (Array.isArray(d)) { for (var p = d.length, u = p - 1, g = 0; g < p; ++g)a += h + i(stringifyPrimitive(d[g])), g < u && (a += t); p && f < c && (a += t) } else a += h + i(stringifyPrimitive(d)), f < c && (a += t) } return a } return "" } function charCodes(e) { if (0 === e.length) return []; if (1 === e.length) return [e.charCodeAt(0)]; const t = []; for (var n = 0; n < e.length; ++n)t[t.length] = e.charCodeAt(n); return t } const defSepCodes = [38], defEqCodes = [61]; function parse(e, t, n, r) { const i = new ParsedQueryString; if ("string" != typeof e || 0 === e.length) return i; var o = t ? charCodes(t + "") : defSepCodes, s = n ? charCodes(n + "") : defEqCodes; const c = o.length, a = s.length; var f = 1e3; r && "number" == typeof r.maxKeys && (f = r.maxKeys > 0 ? r.maxKeys : -1); var l = QueryString.unescape; r && "function" == typeof r.decodeURIComponent && (l = r.decodeURIComponent); const d = l !== qsUnescape, h = []; for (var p = 0, u = 0, g = 0, y = "", b = "", C = d, v = d, x = 0, m = 0; m < e.length; ++m) { const t = e.charCodeAt(m); if (t !== o[u]) { if (u = 0, v || (37 === t ? x = 1 : x > 0 && (t >= 48 && t <= 57 || t >= 65 && t <= 70 || t >= 97 && t <= 102) ? 3 == ++x && (v = !0) : x = 0), g < a) { if (t === s[g]) { if (++g === a) { const t = m - g + 1; p < t && (y += e.slice(p, t)), x = 0, p = m + 1 } continue } g = 0, C || (37 === t ? x = 1 : x > 0 && (t >= 48 && t <= 57 || t >= 65 && t <= 70 || t >= 97 && t <= 102) ? 3 == ++x && (C = !0) : x = 0) } 43 === t && (g < a ? (p < m && (y += e.slice(p, m)), y += "%20", C = !0) : (p < m && (b += e.slice(p, m)), b += "%20", v = !0), p = m + 1) } else if (++u === c) { const t = m - u + 1; if (g < a ? p < t && (y += e.slice(p, t)) : p < t && (b += e.slice(p, t)), C && (y = decodeStr(y, l)), v && (b = decodeStr(b, l)), -1 === h.indexOf(y)) i[y] = b, h[h.length] = y; else { const e = i[y]; e.pop ? e[e.length] = b : i[y] = [e, b] } if (0 == --f) break; C = v = d, x = 0, y = b = "", p = m + 1, u = g = 0 } } if (0 !== f && (p < e.length || g > 0)) if (p < e.length && (g < a ? y += e.slice(p) : u < c && (b += e.slice(p))), C && (y = decodeStr(y, l)), v && (b = decodeStr(b, l)), -1 === h.indexOf(y)) i[y] = b, h[h.length] = y; else { const e = i[y]; e.pop ? e[e.length] = b : i[y] = [e, b] } return i } function decodeStr(e, t) { try { return t(e) } catch (t) { return QueryString.unescape(e, !0) } }
+// Stringify an object into a query string
+function stringify(obj) {
+    return Object.keys(obj)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]))
+        .join('&');
+}
+
+// Parse a query string into an object
+function parse(queryString) {
+    return queryString.split('&')
+        .reduce((acc, pair) => {
+            const [key, value] = pair.split('=').map(decodeURIComponent);
+            acc[key] = value;
+            return acc;
+        }, {});
+}
 
 module.exports = request;
